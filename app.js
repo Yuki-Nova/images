@@ -3,7 +3,7 @@ const OSS = require('ali-oss');
 const ejs = require('ejs');
 const path = require('path');
 const bodyParser = require('body-parser');
-const readline = require('readline');
+require('dotenv').config();
 
 const app = express();
 const port = 3000; // 本地端口
@@ -14,45 +14,32 @@ app.set('view engine', 'ejs');
 // ... 前面的引用代码不变 ...
 
 // --- 1. 配置阿里云 OSS ---
-let client;
-let ossConfig = {
+const ossConfig = {
   region: process.env.OSS_REGION, // 例如: oss-cn-shanghai
   accessKeyId: process.env.OSS_ACCESS_KEY_ID,
   accessKeySecret: process.env.OSS_ACCESS_KEY_SECRET,
   bucket: process.env.OSS_BUCKET,
 };
 
-function askQuestion(rl, question) {
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => resolve(answer.trim()));
-  });
+const missingOssConfig = Object.entries(ossConfig)
+  .filter(([, value]) => !value)
+  .map(([key]) => key);
+
+if (missingOssConfig.length > 0) {
+  console.error('❌ OSS 配置缺失，请检查 .env 或环境变量：');
+  console.error(missingOssConfig.join(', '));
+  process.exit(1);
 }
 
-async function ensureOssConfig() {
-  const missing = Object.entries(ossConfig)
-    .filter(([, value]) => !value)
-    .map(([key]) => key);
+const client = new OSS(ossConfig);
+const publicBaseUrl = `https://${ossConfig.bucket}.${ossConfig.region}.aliyuncs.com/`;
 
-  if (missing.length === 0) {
-    return;
-  }
-
-  console.log('❗OSS 配置缺失，请按提示输入。');
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-
-  try {
-    for (const key of missing) {
-      const value = await askQuestion(rl, `请输入 ${key}: `);
-      if (!value) {
-        console.error('❌ 输入为空，启动已终止。');
-        process.exit(1);
-      }
-      ossConfig[key] = value;
-      process.env[key] = value;
-    }
-  } finally {
-    rl.close();
-  }
+function buildPublicUrl(objectName) {
+  const encodedPath = objectName
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+  return `${publicBaseUrl}${encodedPath}`;
 }
 
 // --- 新增：启动时先测试连接 ---
@@ -86,7 +73,7 @@ async function listAllImages() {
 
       images.push({
         name: path.basename(obj.name),
-        url: client.signatureUrl(obj.name, { expires: 3600 }),
+        url: buildPublicUrl(obj.name),
       });
     }
 
@@ -127,16 +114,6 @@ app.get('/', async (req, res) => {
 // ... 后面的路由代码 ...
 
 // 启动服务器
-async function bootstrap() {
-  await ensureOssConfig();
-  client = new OSS(ossConfig);
-
-  app.listen(port, () => {
-    testConnection(); // 先测试连接
-  });
-}
-
-bootstrap().catch((e) => {
-  console.error('❌ 启动失败：', e.message);
-  process.exit(1);
+app.listen(port, () => {
+  testConnection(); // 先测试连接
 });

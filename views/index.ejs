@@ -13,6 +13,11 @@
         button { margin-top: 5px; padding: 5px 10px; font-size: 12px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; }
         button:hover { background: #0056b3; }
         h1 { text-align: center; color: #333; }
+        .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 9999; }
+        .lightbox.show { display: flex; }
+        .lightbox img { max-width: 92vw; max-height: 92vh; object-fit: contain; box-shadow: 0 10px 30px rgba(0,0,0,0.5); cursor: default; }
+        .lightbox-close { position: absolute; top: 16px; right: 20px; font-size: 28px; color: #fff; background: transparent; border: none; cursor: pointer; }
+        .lightbox-hint { position: absolute; bottom: 16px; color: #ddd; font-size: 12px; }
     </style>
 </head>
 <body>
@@ -21,16 +26,20 @@
     <div class="grid">
         <% images.forEach(function(img){ %>
             <div class="card">
-                <!-- 点击图片直接在新标签页打开 -->
-                <a href="<%= img.url %>" target="_blank">
-                    <img src="<%= img.url %>" alt="<%= img.name %>" loading="lazy">
-                </a>
+                <!-- 点击图片全屏预览 -->
+                <img src="<%= img.url %>" alt="<%= img.name %>" loading="lazy" onclick="openLightbox('<%= img.url %>')">
                 
-                <input type="text" id="input-<%= img.name %>" value="![<%= img.name %>](<%= img.url %>)" readonly onclick="this.select()">
+                <input type="text" id="input-<%= img.name %>" value="![](<%= img.url %>)" readonly onclick="this.select()">
                 
                 <button onclick="copyToClipboard('input-<%= img.name %>')">复制 Markdown</button>
             </div>
         <% }); %>
+    </div>
+
+    <div id="lightbox" class="lightbox" onclick="onLightboxClick(event)">
+        <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+        <img id="lightbox-image" src="" alt="预览">
+        <div class="lightbox-hint">点击空白处或按 Esc 关闭</div>
     </div>
 
     <script>
@@ -40,6 +49,34 @@
             document.execCommand('copy');
             alert('已复制 Markdown 链接！');
         }
+
+        function openLightbox(url) {
+            const box = document.getElementById('lightbox');
+            const img = document.getElementById('lightbox-image');
+            img.src = url;
+            box.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLightbox() {
+            const box = document.getElementById('lightbox');
+            const img = document.getElementById('lightbox-image');
+            img.src = '';
+            box.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        function onLightboxClick(event) {
+            if (event.target.id === 'lightbox') {
+                closeLightbox();
+            }
+        }
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                closeLightbox();
+            }
+        });
     </script>
 
 </body>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的 OSS 本地相册</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; padding: 20px; background: #f5f5f5; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+        .card { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); text-align: center; }
+        img { max-width: 100%; max-height: 200px; object-fit: contain; border-radius: 4px; cursor: pointer; }
+        input { width: 100%; margin-top: 10px; padding: 5px; box-sizing: border-box; font-size: 12px; color: #555; }
+        button { margin-top: 5px; padding: 5px 10px; font-size: 12px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; }
+        button:hover { background: #0056b3; }
+        h1 { text-align: center; color: #333; }
+    </style>
+</head>
+<body>
+
+    <h1>🖼️ OSS 云端相册</h1>
+    <div class="grid">
+        <% images.forEach(function(img){ %>
+            <div class="card">
+                <!-- 点击图片直接在新标签页打开 -->
+                <a href="<%= img.url %>" target="_blank">
+                    <img src="<%= img.url %>" alt="<%= img.name %>" loading="lazy">
+                </a>
+                
+                <input type="text" id="input-<%= img.name %>" value="![<%= img.name %>](<%= img.url %>)" readonly onclick="this.select()">
+                
+                <button onclick="copyToClipboard('input-<%= img.name %>')">复制 Markdown</button>
+            </div>
+        <% }); %>
+    </div>
+
+    <script>
+        function copyToClipboard(elementId) {
+            const copyText = document.getElementById(elementId);
+            copyText.select();
+            document.execCommand('copy');
+            alert('已复制 Markdown 链接！');
+        }
+    </script>
+
+</body>
+</html>

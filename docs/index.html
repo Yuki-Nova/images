@@ -3820,9 +3820,8 @@
 
         const GITHUB_OWNER = 'Yuki-Nova';
         const GITHUB_REPO = 'images';
-        const GITHUB_BRANCH = 'main';
         const CATEGORY_PATH = 'categories.json';
-        const CATEGORY_API_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CATEGORY_PATH}?ref=${GITHUB_BRANCH}`;
+        const CATEGORY_API_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CATEGORY_PATH}`;
 
         const cards = Array.from(document.querySelectorAll('.card'));
         const categoryFilter = document.getElementById('category-filter');
@@ -3871,6 +3870,14 @@
             return `token ${trimmed}`;
         }
 
+        function assertLatin1(value, label) {
+            for (let i = 0; i < value.length; i += 1) {
+                if (value.charCodeAt(i) > 255) {
+                    throw new Error(`${label} contains non ISO-8859-1 characters`);
+                }
+            }
+        }
+
         function buildGitHubHeaders(token, isJson) {
             const headers = {
                 Accept: 'application/vnd.github+json',
@@ -3878,6 +3885,7 @@
             };
             const auth = normalizeAuthHeader(token);
             if (auth) {
+                assertLatin1(auth, 'Authorization header');
                 headers.Authorization = auth;
             }
             if (isJson) {
@@ -3977,7 +3985,13 @@
         async function loadCategories() {
             setStatus('正在加载分类...');
             const token = getToken();
-            const headers = buildGitHubHeaders(token, false);
+            let headers;
+            try {
+                headers = buildGitHubHeaders(token, false);
+            } catch (error) {
+                setStatus(`令牌错误: ${error.message}`);
+                return;
+            }
 
             try {
                 const response = await fetch(CATEGORY_API_URL, { headers });
@@ -4017,16 +4031,16 @@
             const body = {
                 message: `Update categories ${new Date().toISOString()}`,
                 content: encodeStringToBase64(payload),
-                branch: GITHUB_BRANCH,
             };
             if (fileSha) {
                 body.sha = fileSha;
             }
 
             try {
+                const headers = buildGitHubHeaders(token, true);
                 const response = await fetch(CATEGORY_API_URL, {
                     method: 'PUT',
-                    headers: buildGitHubHeaders(token, true),
+                    headers,
                     body: JSON.stringify(body),
                 });
 

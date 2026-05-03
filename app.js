@@ -11,8 +11,6 @@ const port = 3000; // 本地端口
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 
-// ... 前面的引用代码不变 ...
-
 // --- 1. 配置阿里云 OSS ---
 const ossConfig = {
   region: process.env.OSS_REGION, // 例如: oss-cn-shanghai
@@ -42,7 +40,7 @@ function buildPublicUrl(objectName) {
   return `${publicBaseUrl}${encodedPath}`;
 }
 
-// --- 新增：启动时先测试连接 ---
+// --- 启动时先测试连接 OSS，确保配置正确 ---
 async function testConnection() {
   try {
     console.log('⏳ 正在尝试连接阿里云 OSS...');
@@ -73,12 +71,20 @@ async function listAllImages() {
 
       images.push({
         name: path.basename(obj.name),
+        objectKey: obj.name,
+        lastModified: obj.lastModified || null,
         url: buildPublicUrl(obj.name),
       });
     }
 
     marker = result.nextMarker;
   } while (marker);
+
+  images.sort((a, b) => {
+    const timeA = a.lastModified ? Date.parse(a.lastModified) : 0;
+    const timeB = b.lastModified ? Date.parse(b.lastModified) : 0;
+    return timeB - timeA;
+  });
 
   return images;
 }
@@ -110,8 +116,6 @@ app.get('/', async (req, res) => {
 </html>`);
   }
 });
-
-// ... 后面的路由代码 ...
 
 // 启动服务器
 app.listen(port, () => {

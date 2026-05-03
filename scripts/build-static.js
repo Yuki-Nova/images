@@ -34,6 +34,8 @@ async function listAllImages() {
       if (!obj.name.endsWith('/')) {
         images.push({
           name: path.basename(obj.name),
+          objectKey: obj.name,
+          lastModified: obj.lastModified || null,
           url: buildPublicUrl(obj.name),
         });
       }
@@ -41,6 +43,12 @@ async function listAllImages() {
 
     marker = result.nextMarker;
   } while (marker);
+
+  images.sort((a, b) => {
+    const timeA = a.lastModified ? Date.parse(a.lastModified) : 0;
+    const timeB = b.lastModified ? Date.parse(b.lastModified) : 0;
+    return timeB - timeA;
+  });
 
   return images;
 }

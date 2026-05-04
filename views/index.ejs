@@ -20,6 +20,10 @@
         .toolbar select { padding: 5px; font-size: 12px; }
         .toolbar input[type="password"] { width: 220px; margin-top: 0; }
         .status-text { font-size: 12px; color: #666; min-height: 16px; }
+        .pagination { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; font-size: 12px; color: #444; }
+        .pagination button { margin-top: 0; }
+        .pagination-info { min-width: 60px; text-align: center; }
+        .pagination-meta { color: #777; }
         .category-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
         .category-label { font-size: 12px; color: #444; background: #eef2f6; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
         .category-input { flex: 1; margin-top: 0; }
@@ -47,6 +51,12 @@
             <button id="save-categories" type="button" disabled>保存分类到 GitHub</button>
         </div>
         <div class="status-text" id="save-status"></div>
+    </div>
+    <div class="pagination" id="pagination">
+        <button id="page-prev" type="button">上一页</button>
+        <span class="pagination-info" id="page-info">0 / 0</span>
+        <button id="page-next" type="button">下一页</button>
+        <span class="pagination-meta">每页 50</span>
     </div>
     <div class="grid">
         <% images.forEach(function(img, idx){ %>
@@ -118,9 +128,16 @@
         const patInput = document.getElementById('pat-input');
         const saveButton = document.getElementById('save-categories');
         const statusText = document.getElementById('save-status');
+        const pagePrevButton = document.getElementById('page-prev');
+        const pageNextButton = document.getElementById('page-next');
+        const pageInfo = document.getElementById('page-info');
+
+        const PAGE_SIZE = 50;
 
         let categoryMap = {};
         let fileSha = null;
+        let currentPage = 1;
+        let filteredCards = [];
 
         function setStatus(text) {
             statusText.textContent = text || '';
@@ -222,7 +239,7 @@
         }
 
         function refreshCategoryFilterOptions() {
-            const current = categoryFilter.value || 'ALL';
+            const current = categoryFilter.value || 'UNCAT';
             const categories = Object.values(categoryMap)
                 .filter((value) => value && value.trim())
                 .map((value) => value.trim());
@@ -244,20 +261,55 @@
             if (options.find((option) => option.value === current)) {
                 categoryFilter.value = current;
             } else {
-                categoryFilter.value = 'ALL';
+                categoryFilter.value = 'UNCAT';
             }
+        }
+
+        function updatePagination() {
+            const totalPages = Math.max(1, Math.ceil(filteredCards.length / PAGE_SIZE));
+            if (currentPage > totalPages) {
+                currentPage = totalPages;
+            }
+
+            const start = (currentPage - 1) * PAGE_SIZE;
+            const end = start + PAGE_SIZE;
+
+            filteredCards.forEach((card, index) => {
+                card.style.display = index >= start && index < end ? '' : 'none';
+            });
+
+            if (filteredCards.length === 0) {
+                pageInfo.textContent = '0 / 0';
+            } else {
+                pageInfo.textContent = `${currentPage} / ${totalPages}`;
+            }
+            pagePrevButton.disabled = currentPage <= 1;
+            pageNextButton.disabled = currentPage >= totalPages;
         }
 
         function applyFilter() {
             const selected = categoryFilter.value;
+            filteredCards = [];
+
             cards.forEach((card) => {
                 const key = card.dataset.key;
                 const category = (categoryMap[key] || '').trim();
                 const isMatch = selected === 'ALL'
                     || (selected === 'UNCAT' && !category)
                     || category === selected;
+                if (isMatch) {
+                    filteredCards.push(card);
+                }
                 card.style.display = isMatch ? '' : 'none';
             });
+
+            if (selected === 'UNCAT' && filteredCards.length === 0) {
+                categoryFilter.value = 'ALL';
+                return applyFilter();
+            }
+
+            currentPage = 1;
+            updatePagination();
         }
 
         function applyCategories() {
@@ -377,6 +429,19 @@
 
         categoryFilter.addEventListener('change', applyFilter);
         saveButton.addEventListener('click', saveCategories);
+        pagePrevButton.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage -= 1;
+                updatePagination();
+            }
+        });
+        pageNextButton.addEventListener('click', () => {
+            const totalPages = Math.max(1, Math.ceil(filteredCards.length / PAGE_SIZE));
+            if (currentPage < totalPages) {
+                currentPage += 1;
+                updatePagination();
+            }
+        });
         patInput.addEventListener('input', () => {
             const token = patInput.value.trim();
             setToken(token);

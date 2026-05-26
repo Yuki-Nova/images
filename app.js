@@ -30,7 +30,8 @@ if (missingOssConfig.length > 0) {
 }
 
 const client = new OSS(ossConfig);
-const publicBaseUrl = `https://${ossConfig.bucket}.${ossConfig.region}.aliyuncs.com/`;
+const publicBaseUrl = 'https://img.yukinova.top/';
+const PROCESS_SUFFIX = '?x-oss-process=image/auto-orient,1/quality,q_30/format,webp';
 
 function buildPublicUrl(objectName) {
   const encodedPath = objectName
@@ -69,11 +70,13 @@ async function listAllImages() {
         continue;
       }
 
+      const originalUrl = buildPublicUrl(obj.name);
       images.push({
         name: path.basename(obj.name),
         objectKey: obj.name,
         lastModified: obj.lastModified || null,
-        url: buildPublicUrl(obj.name),
+        url: originalUrl,
+        thumbUrl: originalUrl + PROCESS_SUFFIX,
       });
     }
 

@@ -12,7 +12,8 @@ const client = new OSS({
   bucket: process.env.OSS_BUCKET,
 });
 
-const publicBaseUrl = `https://${process.env.OSS_BUCKET}.${process.env.OSS_REGION}.aliyuncs.com/`;
+const publicBaseUrl = 'https://img.yukinova.top/';
+const PROCESS_SUFFIX = '?x-oss-process=image/auto-orient,1/quality,q_30/format,webp';
 
 function buildPublicUrl(objectName) {
   return objectName
@@ -32,11 +33,13 @@ async function listAllImages() {
 
     for (const obj of objects) {
       if (!obj.name.endsWith('/')) {
+        const originalUrl = buildPublicUrl(obj.name);
         images.push({
           name: path.basename(obj.name),
           objectKey: obj.name,
           lastModified: obj.lastModified || null,
-          url: buildPublicUrl(obj.name),
+          url: originalUrl,
+          thumbUrl: originalUrl + PROCESS_SUFFIX,
         });
       }
     }

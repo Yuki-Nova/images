@@ -62,7 +62,7 @@
         <% images.forEach(function(img, idx){ %>
             <div class="card" data-key="<%= img.objectKey %>" data-last-modified="<%= img.lastModified || '' %>">
                 <!-- 点击图片全屏预览 -->
-                <img src="<%= img.url %>" alt="<%= img.name %>" loading="lazy" onclick="openLightbox('<%= img.url %>')">
+                <img src="<%= img.thumbUrl %>" alt="<%= img.name %>" loading="lazy" onclick="openLightbox('<%= img.url %>')">
 
                 <div class="category-row">
                     <span class="category-label">未分类</span>

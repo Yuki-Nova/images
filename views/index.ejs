@@ -18,7 +18,6 @@
         .toolbar-group { display: flex; gap: 8px; align-items: center; }
         .toolbar label { font-size: 12px; color: #444; }
         .toolbar select { padding: 5px; font-size: 12px; }
-        .toolbar input[type="password"] { width: 220px; margin-top: 0; }
         .status-text { font-size: 12px; color: #666; min-height: 16px; }
         .pagination { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; font-size: 12px; color: #444; }
         .pagination button { margin-top: 0; }
@@ -46,9 +45,7 @@
             </select>
         </div>
         <div class="toolbar-group">
-            <label for="pat-input">管理员</label>
-            <input type="password" id="pat-input" placeholder="GitHub PAT (仅管理员)">
-            <button id="save-categories" type="button" disabled>保存分类到 GitHub</button>
+            <button id="save-categories" type="button">保存分类</button>
         </div>
         <div class="status-text" id="save-status"></div>
     </div>
@@ -66,7 +63,7 @@
 
                 <div class="category-row">
                     <span class="category-label">未分类</span>
-                    <input class="category-input" type="text" placeholder="分类" disabled>
+                    <input class="category-input" type="text" placeholder="分类">
                 </div>
 
                 <input type="text" id="input-<%= idx %>" value="![](<%= img.url %>)" readonly onclick="this.select()">
@@ -118,14 +115,10 @@
             }
         });
 
-        const GITHUB_OWNER = 'Yuki-Nova';
-        const GITHUB_REPO = 'images';
-        const CATEGORY_PATH = 'categories.json';
-        const CATEGORY_API_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CATEGORY_PATH}`;
+        const CATEGORY_API_URL = '/api/categories';
 
         const cards = Array.from(document.querySelectorAll('.card'));
         const categoryFilter = document.getElementById('category-filter');
-        const patInput = document.getElementById('pat-input');
         const saveButton = document.getElementById('save-categories');
         const statusText = document.getElementById('save-status');
         const pagePrevButton = document.getElementById('page-prev');
@@ -135,7 +128,6 @@
         const PAGE_SIZE = 50;
 
         let categoryMap = {};
-        let fileSha = null;
         let currentPage = 1;
         let filteredCards = [];
 
@@ -143,95 +135,6 @@
             statusText.textContent = text || '';
         }
 
-        function getToken() {
-            return sessionStorage.getItem('github_pat') || '';
-        }
-
-        function setToken(token) {
-            if (token) {
-                sessionStorage.setItem('github_pat', token);
-            } else {
-                sessionStorage.removeItem('github_pat');
-            }
-        }
-
-        function setAdminEnabled(enabled) {
-            const inputs = document.querySelectorAll('.category-input');
-            inputs.forEach((input) => {
-                input.disabled = !enabled;
-            });
-            saveButton.disabled = !enabled;
-        }
-
-        function normalizeAuthHeader(token) {
-            const trimmed = token.trim();
-            if (!trimmed) {
-                return '';
-            }
-            if (/^(token|Bearer)\s+/i.test(trimmed)) {
-                return trimmed;
-            }
-            if (trimmed.startsWith('github_pat_')) {
-                return `Bearer ${trimmed}`;
-            }
-            return `token ${trimmed}`;
-        }
-
-        function assertLatin1(value, label) {
-            for (let i = 0; i < value.length; i += 1) {
-                if (value.charCodeAt(i) > 255) {
-                    throw new Error(`${label} contains non ISO-8859-1 characters`);
-                }
-            }
-        }
-
-        function buildGitHubHeaders(token, isJson) {
-            const headers = {
-                Accept: 'application/vnd.github+json',
-                'X-GitHub-Api-Version': '2022-11-28',
-            };
-            const auth = normalizeAuthHeader(token);
-            if (auth) {
-                assertLatin1(auth, 'Authorization header');
-                headers.Authorization = auth;
-            }
-            if (isJson) {
-                headers['Content-Type'] = 'application/json';
-            }
-            return headers;
-        }
-
-        async function readErrorMessage(response) {
-            try {
-                const data = await response.json();
-                if (data && typeof data === 'object') {
-                    return data.message || JSON.stringify(data);
-                }
-            } catch (error) {
-                // Ignore JSON parse errors and fall back to text.
-            }
-            try {
-                return await response.text();
-            } catch (error) {
-                return '';
-            }
-        }
-
-        function decodeBase64ToString(base64) {
-            const cleaned = base64.replace(/\n/g, '');
-            const binary = atob(cleaned);
-            const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
-            return new TextDecoder('utf-8').decode(bytes);
-        }
-
-        function encodeStringToBase64(value) {
-            const bytes = new TextEncoder().encode(value);
-            let binary = '';
-            bytes.forEach((byte) => {
-                binary += String.fromCharCode(byte);
-            });
-            return btoa(binary);
-        }
 
         function updateCardCategory(card, category) {
             const label = card.querySelector('.category-label');
@@ -326,34 +229,15 @@
 
         async function loadCategories() {
             setStatus('正在加载分类...');
-            const token = getToken();
-            let headers;
             try {
-                headers = buildGitHubHeaders(token, false);
-            } catch (error) {
-                setStatus(`令牌错误: ${error.message}`);
-                return;
-            }
-
-            try {
-                const response = await fetch(CATEGORY_API_URL, { headers });
-                if (response.status === 404) {
-                    categoryMap = {};
-                    fileSha = null;
-                    setStatus('未找到 categories.json，将在保存时创建。');
-                    applyCategories();
-                    return;
-                }
+                const response = await fetch(CATEGORY_API_URL);
                 if (!response.ok) {
-                    const detail = await readErrorMessage(response);
-                    throw new Error(`加载失败 (${response.status}) ${detail}`);
+                    throw new Error(`加载失败 (${response.status})`);
                 }
 
                 const data = await response.json();
-                fileSha = data.sha || null;
-                const text = data.content ? decodeBase64ToString(data.content) : '{}';
-                const parsed = JSON.parse(text || '{}');
-                categoryMap = parsed && typeof parsed === 'object' ? parsed : {};
+                const parsed = data && typeof data === 'object' ? (data.categories || data) : {};
+                categoryMap = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
                 setStatus('分类已加载');
                 applyCategories();
             } catch (error) {
@@ -362,38 +246,29 @@
         }
 
         async function saveCategories() {
-            const token = getToken();
-            if (!token) {
-                alert('请先输入 GitHub PAT 才能保存分类。');
-                return;
-            }
-
             setStatus('正在保存分类...');
-            const payload = JSON.stringify(categoryMap, null, 2);
-            const body = {
-                message: `Update categories ${new Date().toISOString()}`,
-                content: encodeStringToBase64(payload),
-            };
-            if (fileSha) {
-                body.sha = fileSha;
-            }
-
             try {
-                const headers = buildGitHubHeaders(token, true);
                 const response = await fetch(CATEGORY_API_URL, {
                     method: 'PUT',
-                    headers,
-                    body: JSON.stringify(body),
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ categories: categoryMap }),
                 });
 
                 if (!response.ok) {
-                    const detail = await readErrorMessage(response);
-                    throw new Error(`保存失败 (${response.status}) ${detail}`);
+                    let detail = '';
+                    try {
+                        const data = await response.json();
+                        if (data && typeof data === 'object' && data.error) {
+                            detail = ` ${data.error}`;
+                        }
+                    } catch (error) {
+                        // Ignore JSON parse errors and fall back to status only.
+                    }
+                    throw new Error(`保存失败 (${response.status})${detail}`);
                 }
-
-                const data = await response.json();
-                fileSha = data.content && data.content.sha ? data.content.sha : fileSha;
-                setStatus('分类已保存到 GitHub。');
+                setStatus('分类已保存。');
             } catch (error) {
                 setStatus(`保存失败: ${error.message}`);
             }
@@ -418,11 +293,6 @@
         }
 
         function initCategories() {
-            const token = getToken();
-            if (token) {
-                patInput.value = token;
-            }
-            setAdminEnabled(Boolean(token));
             wireCategoryInputs();
             loadCategories();
         }
@@ -442,12 +312,6 @@
                 updatePagination();
             }
         });
-        patInput.addEventListener('input', () => {
-            const token = patInput.value.trim();
-            setToken(token);
-            setAdminEnabled(Boolean(token));
-        });
-
         initCategories();
     </script>
 

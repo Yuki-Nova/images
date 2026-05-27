@@ -1,6 +1,7 @@
 const express = require('express');
 const OSS = require('ali-oss');
 const ejs = require('ejs');
+const fs = require('fs/promises');
 const path = require('path');
 const bodyParser = require('body-parser');
 require('dotenv').config();
@@ -10,6 +11,7 @@ const port = 3000; // 本地端口
 
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
+app.use(express.json({ limit: '1mb' }));
 
 // --- 1. 配置阿里云 OSS ---
 const ossConfig = {
@@ -32,6 +34,7 @@ if (missingOssConfig.length > 0) {
 const client = new OSS(ossConfig);
 const publicBaseUrl = 'https://img.yukinova.top/';
 const PROCESS_SUFFIX = '?x-oss-process=image/auto-orient,1/quality,q_30/format,webp';
+const categoriesPath = path.join(__dirname, 'categories.json');
 
 function buildPublicUrl(objectName) {
   const encodedPath = objectName
@@ -39,6 +42,27 @@ function buildPublicUrl(objectName) {
     .map((segment) => encodeURIComponent(segment))
     .join('/');
   return `${publicBaseUrl}${encodedPath}`;
+}
+
+async function readCategories() {
+  try {
+    const text = await fs.readFile(categoriesPath, 'utf8');
+    const parsed = JSON.parse(text || '{}');
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed;
+    }
+    return {};
+  } catch (e) {
+    if (e.code === 'ENOENT') {
+      return {};
+    }
+    throw e;
+  }
+}
+
+async function writeCategories(categories) {
+  const payload = JSON.stringify(categories, null, 2);
+  await fs.writeFile(categoriesPath, `${payload}\n`, 'utf8');
 }
 
 // --- 启动时先测试连接 OSS，确保配置正确 ---
@@ -117,6 +141,38 @@ app.get('/', async (req, res) => {
     <pre>${JSON.stringify(details, null, 2)}</pre>
   </body>
 </html>`);
+  }
+});
+
+app.get('/api/categories', async (req, res) => {
+  try {
+    const categories = await readCategories();
+    res.json({ categories });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to read categories.' });
+  }
+});
+
+app.put('/api/categories', async (req, res) => {
+  const payload = req.body && typeof req.body === 'object'
+    ? (req.body.categories || req.body)
+    : null;
+
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return res.status(400).json({ error: 'Invalid categories payload.' });
+  }
+
+  for (const [key, value] of Object.entries(payload)) {
+    if (typeof key !== 'string' || typeof value !== 'string') {
+      return res.status(400).json({ error: 'Categories must be string pairs.' });
+    }
+  }
+
+  try {
+    await writeCategories(payload);
+    return res.json({ ok: true, count: Object.keys(payload).length });
+  } catch (e) {
+    return res.status(500).json({ error: 'Failed to write categories.' });
   }
 });
 

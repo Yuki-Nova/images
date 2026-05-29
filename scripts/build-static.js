@@ -65,6 +65,13 @@ async function main() {
   const outDir = path.join(__dirname, '..', 'docs');
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, 'index.html'), html, 'utf8');
+
+  const assetSource = path.join(__dirname, '..', 'public', '备案图标.png');
+  if (fs.existsSync(assetSource)) {
+    const assetDir = path.join(outDir, 'assets');
+    fs.mkdirSync(assetDir, { recursive: true });
+    fs.copyFileSync(assetSource, path.join(assetDir, '备案图标.png'));
+  }
   console.log('Generated docs/index.html');
 }
 

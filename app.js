@@ -13,6 +13,9 @@ app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 app.use(express.json({ limit: '1mb' }));
 
+const staticDir = path.join(__dirname, 'public');
+app.use('/assets', express.static(staticDir));
+
 // --- 1. 配置阿里云 OSS ---
 const ossConfig = {
   region: process.env.OSS_REGION, // 例如: oss-cn-shanghai

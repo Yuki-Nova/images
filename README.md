@@ -32,15 +32,6 @@ Node.js 服务（:3000）
     ↓ 未命中 → 回源 OSS（内网，免流量费）
 ```
 
-## 服务器环境
-
-- **服务器**：阿里云 ECS 华东1（杭州），2核2G，40G ESSD
-- **操作系统**：Ubuntu 22.04 LTS 64位
-- **访问路径**：https://yukinova.top/images
-- **图片 CDN 域名**：img.yukinova.top
-- **OSS Bucket**：yukino139（华东2 上海）
-- **CDN 回源**：yukino139.oss-cn-shanghai.aliyuncs.com
-
 ## 环境变量配置
 
 在项目根目录创建 `.env` 文件：

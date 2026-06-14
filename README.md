@@ -12,8 +12,8 @@
 | [ali-oss](https://github.com/ali-sdk/ali-oss) | 6.23.0 | 阿里云 OSS SDK，遍历图片列表 |
 | [dotenv](https://github.com/motdotla/dotenv) | 16.5.0 | 环境变量管理 |
 | [body-parser](https://github.com/expressjs/body-parser) | 2.2.2 | 请求体解析 |
-| 阿里云 OSS | - | 图片存储（华东2 上海，Bucket: yukino139） |
-| 阿里云 CDN | - | 图片加速分发（img.yukinova.top） |
+| 阿里云 OSS | - | 图片存储 |
+| 阿里云 CDN | - | 图片加速分发 |
 | Nginx | - | 反向代理（宝塔面板管理） |
 
 ## 部署架构
@@ -37,13 +37,13 @@ Node.js 服务（:3000）
 在项目根目录创建 `.env` 文件：
 
 ```env
-OSS_REGION=oss-cn-shanghai
+OSS_REGION=
 OSS_ACCESS_KEY_ID=你的AccessKeyId
 OSS_ACCESS_KEY_SECRET=你的AccessKeySecret
-OSS_BUCKET=yukino139
+OSS_BUCKET=
 ```
 
-> ⚠️ `.env` 文件包含敏感信息，不要提交到 Git 仓库。
+> ⚠️ `.env` 文件包含敏感信息
 
 ## 本地开发
 

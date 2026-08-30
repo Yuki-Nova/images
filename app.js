@@ -3,7 +3,9 @@ const OSS = require('ali-oss');
 const ejs = require('ejs');
 const fs = require('fs/promises');
 const path = require('path');
+const crypto = require('crypto');
 const bodyParser = require('body-parser');
+const { buildPublicUrl, PROCESS_SUFFIX, listAllImages } = require('./lib/images');
 require('dotenv').config();
 
 const app = express();
@@ -35,16 +37,19 @@ if (missingOssConfig.length > 0) {
 }
 
 const client = new OSS(ossConfig);
-const publicBaseUrl = 'https://img.yukinova.top/';
-const PROCESS_SUFFIX = '?x-oss-process=image/auto-orient,1/resize,w_600/quality,q_30/format,webp';
 const categoriesPath = path.join(__dirname, 'categories.json');
 
-function buildPublicUrl(objectName) {
-  const encodedPath = objectName
-    .split('/')
-    .map((segment) => encodeURIComponent(segment))
-    .join('/');
-  return `${publicBaseUrl}${encodedPath}`;
+// --- auth (same pattern as bookswich: password login -> deterministic session token) ---
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+const AUTH_SALT = '_SALT_GALLERY_V1';
+const hasAuth = () => !!ADMIN_PASSWORD;
+const sessionToken = () => 'web_' + crypto.createHash('sha256').update(ADMIN_PASSWORD + AUTH_SALT).digest('hex').slice(0, 48);
+function tokenValid(req) {
+  if (!hasAuth()) return true;
+  const expected = sessionToken();
+  const header = req.headers['x-auth-token'];
+  const query = req.query && req.query.token;
+  return header === expected || query === expected;
 }
 
 async function readCategories() {
@@ -84,45 +89,13 @@ async function testConnection() {
   }
 }
 
-async function listAllImages() {
-  const images = [];
-  let marker = null;
-
-  do {
-    const result = await client.list({ marker, 'max-keys': 1000 });
-    const objects = result.objects || [];
-
-    for (const obj of objects) {
-      if (obj.name.endsWith('/')) {
-        continue;
-      }
-
-      const originalUrl = buildPublicUrl(obj.name);
-      images.push({
-        name: path.basename(obj.name),
-        objectKey: obj.name,
-        lastModified: obj.lastModified || null,
-        url: originalUrl,
-        thumbUrl: originalUrl + PROCESS_SUFFIX,
-      });
-    }
-
-    marker = result.nextMarker;
-  } while (marker);
-
-  images.sort((a, b) => {
-    const timeA = a.lastModified ? Date.parse(a.lastModified) : 0;
-    const timeB = b.lastModified ? Date.parse(b.lastModified) : 0;
-    return timeB - timeA;
-  });
-
-  return images;
-}
+// listAllImages / buildPublicUrl / PROCESS_SUFFIX live in lib/images.js (shared with build-static.js)
 
 app.get('/', async (req, res) => {
   try {
-    const images = await listAllImages();
-    res.render('index', { images });
+    const images = await listAllImages(client);
+    const categories = await readCategories();
+    res.render('index', { images, initialCategories: categories });
   } catch (e) {
     console.error('❌ 获取 OSS 列表失败：', e);
     const details = {
@@ -147,6 +120,13 @@ app.get('/', async (req, res) => {
   }
 });
 
+app.post('/api/auth/login', (req, res) => {
+  if (!hasAuth()) return res.status(404).json({ error: 'auth not configured on server' });
+  const { password } = req.body || {};
+  if (password === ADMIN_PASSWORD) return res.json({ token: sessionToken() });
+  return res.status(401).json({ error: '密码错误' });
+});
+
 app.get('/api/categories', async (req, res) => {
   try {
     const categories = await readCategories();
@@ -157,6 +137,10 @@ app.get('/api/categories', async (req, res) => {
 });
 
 app.put('/api/categories', async (req, res) => {
+  if (!tokenValid(req)) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+
   const payload = req.body && typeof req.body === 'object'
     ? (req.body.categories || req.body)
     : null;

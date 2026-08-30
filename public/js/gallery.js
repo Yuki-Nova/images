@@ -114,14 +114,18 @@
     }
 
     /* ---------- categories ---------- */
-    function loadCategories() {
+    function useCategories(parsed) {
+        categoryMap = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+        buildChips();
+        render();
+    }
+
+    function fetchCategories() {
         fetch(CATEGORY_API)
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 var parsed = data && typeof data === 'object' ? (data.categories || data) : {};
-                categoryMap = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-                buildChips();
-                render();
+                useCategories(parsed);
             })
             .catch(function () {
                 buildChips();
@@ -129,12 +133,54 @@
             });
     }
 
-    function saveCategories() {
+    function loadCategories() {
+        // static form (GitHub Pages) has categories inlined server-side; dynamic form fetches
+        var el = document.getElementById('initial-categories');
+        if (el) {
+            try {
+                useCategories(JSON.parse(el.textContent || '{}'));
+                return;
+            } catch (e) { /* fall through to fetch */ }
+        }
+        fetchCategories();
+    }
+
+    function getToken() {
+        try { return localStorage.getItem('gallery_token') || ''; } catch (e) { return ''; }
+    }
+
+    function login(password) {
+        return fetch('api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: password }),
+        }).then(function (r) {
+            if (!r.ok) throw new Error('密码错误');
+            return r.json();
+        }).then(function (d) {
+            try { localStorage.setItem('gallery_token', d.token); } catch (e) { /* ignore */ }
+            return d.token;
+        });
+    }
+
+    function putCategories(token) {
+        var headers = { 'Content-Type': 'application/json' };
+        if (token) headers['X-Auth-Token'] = token;
         return fetch(CATEGORY_API, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: headers,
             body: JSON.stringify({ categories: categoryMap }),
-        }).then(function (r) {
+        });
+    }
+
+    function saveCategories() {
+        return putCategories(getToken()).then(function (r) {
+            // 401 + no token yet: ask for the admin password once, then retry with token
+            if (r.status === 401 && !getToken()) {
+                var pw = window.prompt('请输入管理密码以保存分类：');
+                if (!pw) throw new Error('已取消保存');
+                return login(pw).then(putCategories);
+            }
             if (!r.ok) throw new Error('保存失败 (' + r.status + ')');
             return r.json();
         });

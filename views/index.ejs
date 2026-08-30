@@ -1,333 +1,50 @@
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的 OSS 本地相册</title>
-    <style>
-        body { font-family: -apple-system, sans-serif; padding: 20px; background: #f5f5f5; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
-        .card { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); text-align: center; }
-        img { max-width: 100%; max-height: 200px; object-fit: contain; border-radius: 4px; cursor: pointer; }
-        input { width: 100%; margin-top: 10px; padding: 5px; box-sizing: border-box; font-size: 12px; color: #555; }
-        button { margin-top: 5px; padding: 5px 10px; font-size: 12px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; }
-        button:hover { background: #0056b3; }
-        button:disabled { background: #9bb6d9; cursor: not-allowed; }
-        h1 { text-align: center; color: #333; }
-        .toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin: 0 0 20px; }
-        .toolbar-group { display: flex; gap: 8px; align-items: center; }
-        .toolbar label { font-size: 12px; color: #444; }
-        .toolbar select { padding: 5px; font-size: 12px; }
-        .status-text { font-size: 12px; color: #666; min-height: 16px; }
-        .pagination { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; font-size: 12px; color: #444; }
-        .pagination button { margin-top: 0; }
-        .pagination-info { min-width: 60px; text-align: center; }
-        .pagination-meta { color: #777; }
-        .category-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-        .category-label { font-size: 12px; color: #444; background: #eef2f6; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
-        .category-input { flex: 1; margin-top: 0; }
-        .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 9999; }
-        .lightbox.show { display: flex; }
-        .lightbox img { max-width: 92vw; max-height: 92vh; object-fit: contain; box-shadow: 0 10px 30px rgba(0,0,0,0.5); cursor: default; }
-        .lightbox-close { position: absolute; top: 16px; right: 20px; font-size: 28px; color: #fff; background: transparent; border: none; cursor: pointer; }
-        .lightbox-hint { position: absolute; bottom: 16px; color: #ddd; font-size: 12px; }
-        .beian-footer { margin: 24px 0 12px; text-align: center; font-size: 12px; color: #666; }
-        .beian-footer a { color: inherit; text-decoration: none; }
-        .beian-footer a:hover { text-decoration: underline; }
-        .beian-line { display: inline-flex; align-items: center; gap: 6px; }
-    </style>
-</head>
-<body>
+<%- include('partials/header', { title: '相册' }) %>
 
-    <h1>🖼️ OSS 云端相册</h1>
-    <div class="toolbar">
-        <div class="toolbar-group">
-            <label for="category-filter">分类筛选</label>
-            <select id="category-filter">
-                <option value="ALL">全部</option>
-                <option value="UNCAT">未分类</option>
-            </select>
-        </div>
-        <div class="toolbar-group">
-            <button id="save-categories" type="button">保存分类</button>
-        </div>
-        <div class="status-text" id="save-status"></div>
-    </div>
+<main class="wrap">
+    <header class="gallery-head">
+        <h1 class="gallery-title">相册</h1>
+        <p class="gallery-count" id="gallery-count"></p>
+    </header>
+
+    <nav class="filter-bar" id="filter-bar"></nav>
+
+    <div class="grid" id="grid"></div>
+
     <div class="pagination" id="pagination">
         <button id="page-prev" type="button">上一页</button>
-        <span class="pagination-info" id="page-info">0 / 0</span>
+        <span id="page-info">0 / 0</span>
         <button id="page-next" type="button">下一页</button>
-        <span class="pagination-meta">每页 50</span>
     </div>
-    <div class="grid">
-        <% images.forEach(function(img, idx){ %>
-            <div class="card" data-key="<%= img.objectKey %>" data-last-modified="<%= img.lastModified || '' %>">
-                <!-- 点击图片全屏预览 -->
-                <img src="<%= img.thumbUrl %>" alt="<%= img.name %>" loading="lazy" onclick="openLightbox('<%= img.url %>')">
+</main>
 
-                <div class="category-row">
-                    <span class="category-label">未分类</span>
-                    <input class="category-input" type="text" placeholder="分类">
-                </div>
+<script id="gallery-data" type="application/json"><%- JSON.stringify(images.map(function(img){
+    return {
+        key: img.objectKey,
+        name: img.name,
+        url: img.url,
+        thumb: img.thumbUrl,
+        time: img.lastModified || ''
+    };
+})) %></script>
 
-                <input type="text" id="input-<%= idx %>" value="![](<%= img.url %>)" readonly onclick="this.select()">
-
-                <button onclick="copyToClipboard('input-<%= idx %>')">复制 Markdown</button>
+<div class="lightbox" id="lightbox" hidden>
+    <button class="lightbox-close" id="lb-close" type="button" aria-label="关闭">&times;</button>
+    <button class="lightbox-nav prev" id="lb-prev" type="button" aria-label="上一张">&lsaquo;</button>
+    <figure class="lightbox-stage">
+        <img id="lb-img" src="" alt="预览">
+        <figcaption class="lightbox-meta">
+            <span class="meta-name" id="lb-name"></span>
+            <span class="meta-sub" id="lb-sub"></span>
+            <div class="meta-actions">
+                <input id="lb-cat" type="text" placeholder="输入分类">
+                <button id="lb-save-cat" type="button">保存分类</button>
+                <button id="lb-copy" type="button">复制 Markdown</button>
+                <a id="lb-orig" href="#" target="_blank" rel="noopener">原图</a>
             </div>
-        <% }); %>
-    </div>
+        </figcaption>
+    </figure>
+    <button class="lightbox-nav next" id="lb-next" type="button" aria-label="下一张">&rsaquo;</button>
+    <p class="lightbox-hint">← → 切换 · Esc 关闭</p>
+</div>
 
-    <footer class="beian-footer">
-        <div class="beian-line">
-            <img src="assets/备案图标.png" alt="公安备案" style="width: 14px; height: 14px; vertical-align: text-bottom;">
-            <a href="https://beian.mps.gov.cn/#/query/webSearch?code=41090002411116" rel="noreferrer" target="_blank">豫公网安备41090002411116号</a>
-        </div>
-        <div>
-            <a href="https://beian.miit.gov.cn/" rel="noreferrer" target="_blank">豫ICP备2026021381号-1</a>
-        </div>
-    </footer>
-
-    <div id="lightbox" class="lightbox" onclick="onLightboxClick(event)">
-        <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
-        <img id="lightbox-image" src="" alt="预览">
-        <div class="lightbox-hint">点击空白处或按 Esc 关闭</div>
-    </div>
-
-    <script>
-        function copyToClipboard(elementId) {
-            const copyText = document.getElementById(elementId);
-            copyText.select();
-            document.execCommand('copy');
-            alert('已复制 Markdown 链接！');
-        }
-
-        function openLightbox(url) {
-            const box = document.getElementById('lightbox');
-            const img = document.getElementById('lightbox-image');
-            img.src = url;
-            box.classList.add('show');
-            document.body.style.overflow = 'hidden';
-        }
-
-        function closeLightbox() {
-            const box = document.getElementById('lightbox');
-            const img = document.getElementById('lightbox-image');
-            img.src = '';
-            box.classList.remove('show');
-            document.body.style.overflow = '';
-        }
-
-        function onLightboxClick(event) {
-            if (event.target.id === 'lightbox') {
-                closeLightbox();
-            }
-        }
-
-        document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape') {
-                closeLightbox();
-            }
-        });
-
-        const CATEGORY_API_URL = 'api/categories';
-
-        const cards = Array.from(document.querySelectorAll('.card'));
-        const categoryFilter = document.getElementById('category-filter');
-        const saveButton = document.getElementById('save-categories');
-        const statusText = document.getElementById('save-status');
-        const pagePrevButton = document.getElementById('page-prev');
-        const pageNextButton = document.getElementById('page-next');
-        const pageInfo = document.getElementById('page-info');
-
-        const PAGE_SIZE = 50;
-
-        let categoryMap = {};
-        let currentPage = 1;
-        let filteredCards = [];
-
-        function setStatus(text) {
-            statusText.textContent = text || '';
-        }
-
-
-        function updateCardCategory(card, category) {
-            const label = card.querySelector('.category-label');
-            label.textContent = category || '未分类';
-        }
-
-        function refreshCategoryFilterOptions() {
-            const current = categoryFilter.value || 'UNCAT';
-            const categories = Object.values(categoryMap)
-                .filter((value) => value && value.trim())
-                .map((value) => value.trim());
-            const unique = Array.from(new Set(categories)).sort((a, b) => a.localeCompare(b));
-
-            categoryFilter.innerHTML = '';
-            const options = [
-                { value: 'ALL', label: '全部' },
-                { value: 'UNCAT', label: '未分类' },
-            ];
-            unique.forEach((category) => options.push({ value: category, label: category }));
-            options.forEach((option) => {
-                const el = document.createElement('option');
-                el.value = option.value;
-                el.textContent = option.label;
-                categoryFilter.appendChild(el);
-            });
-
-            if (options.find((option) => option.value === current)) {
-                categoryFilter.value = current;
-            } else {
-                categoryFilter.value = 'UNCAT';
-            }
-        }
-
-        function updatePagination() {
-            const totalPages = Math.max(1, Math.ceil(filteredCards.length / PAGE_SIZE));
-            if (currentPage > totalPages) {
-                currentPage = totalPages;
-            }
-
-            const start = (currentPage - 1) * PAGE_SIZE;
-            const end = start + PAGE_SIZE;
-
-            filteredCards.forEach((card, index) => {
-                card.style.display = index >= start && index < end ? '' : 'none';
-            });
-
-            if (filteredCards.length === 0) {
-                pageInfo.textContent = '0 / 0';
-            } else {
-                pageInfo.textContent = `${currentPage} / ${totalPages}`;
-            }
-            pagePrevButton.disabled = currentPage <= 1;
-            pageNextButton.disabled = currentPage >= totalPages;
-        }
-
-        function applyFilter() {
-            const selected = categoryFilter.value;
-            filteredCards = [];
-
-            cards.forEach((card) => {
-                const key = card.dataset.key;
-                const category = (categoryMap[key] || '').trim();
-                const isMatch = selected === 'ALL'
-                    || (selected === 'UNCAT' && !category)
-                    || category === selected;
-                if (isMatch) {
-                    filteredCards.push(card);
-                }
-                card.style.display = isMatch ? '' : 'none';
-            });
-
-            if (selected === 'UNCAT' && filteredCards.length === 0) {
-                categoryFilter.value = 'ALL';
-                return applyFilter();
-            }
-
-            currentPage = 1;
-            updatePagination();
-        }
-
-        function applyCategories() {
-            cards.forEach((card) => {
-                const key = card.dataset.key;
-                const category = (categoryMap[key] || '').trim();
-                const input = card.querySelector('.category-input');
-                input.value = category;
-                updateCardCategory(card, category);
-            });
-            refreshCategoryFilterOptions();
-            applyFilter();
-        }
-
-        async function loadCategories() {
-            setStatus('正在加载分类...');
-            try {
-                const response = await fetch(CATEGORY_API_URL);
-                if (!response.ok) {
-                    throw new Error(`加载失败 (${response.status})`);
-                }
-
-                const data = await response.json();
-                const parsed = data && typeof data === 'object' ? (data.categories || data) : {};
-                categoryMap = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-                setStatus('分类已加载');
-                applyCategories();
-            } catch (error) {
-                setStatus(`分类加载失败: ${error.message}`);
-            }
-        }
-
-        async function saveCategories() {
-            setStatus('正在保存分类...');
-            try {
-                const response = await fetch(CATEGORY_API_URL, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ categories: categoryMap }),
-                });
-
-                if (!response.ok) {
-                    let detail = '';
-                    try {
-                        const data = await response.json();
-                        if (data && typeof data === 'object' && data.error) {
-                            detail = ` ${data.error}`;
-                        }
-                    } catch (error) {
-                        // Ignore JSON parse errors and fall back to status only.
-                    }
-                    throw new Error(`保存失败 (${response.status})${detail}`);
-                }
-                setStatus('分类已保存。');
-            } catch (error) {
-                setStatus(`保存失败: ${error.message}`);
-            }
-        }
-
-        function wireCategoryInputs() {
-            cards.forEach((card) => {
-                const input = card.querySelector('.category-input');
-                input.addEventListener('input', () => {
-                    const key = card.dataset.key;
-                    const value = input.value.trim();
-                    if (value) {
-                        categoryMap[key] = value;
-                    } else {
-                        delete categoryMap[key];
-                    }
-                    updateCardCategory(card, value);
-                    refreshCategoryFilterOptions();
-                    applyFilter();
-                });
-            });
-        }
-
-        function initCategories() {
-            wireCategoryInputs();
-            loadCategories();
-        }
-
-        categoryFilter.addEventListener('change', applyFilter);
-        saveButton.addEventListener('click', saveCategories);
-        pagePrevButton.addEventListener('click', () => {
-            if (currentPage > 1) {
-                currentPage -= 1;
-                updatePagination();
-            }
-        });
-        pageNextButton.addEventListener('click', () => {
-            const totalPages = Math.max(1, Math.ceil(filteredCards.length / PAGE_SIZE));
-            if (currentPage < totalPages) {
-                currentPage += 1;
-                updatePagination();
-            }
-        });
-        initCategories();
-    </script>
-
-</body>
-</html>
+<%- include('partials/footer') %>

@@ -1,0 +1,31 @@
+/* shiro design tokens - extracted from hexo-theme-shiro _tailwind.css (2026-08) */
+:root {
+    --paper: #ffffff;
+    --ink: #2b3036;
+    --seal: #b0171a;
+    --soft-border: rgba(17, 24, 39, 0.06);
+    --focus-ring: rgba(31, 35, 40, 0.18);
+    --muted: #6b7280;
+    --font-serif: 'Cardo', 'Spectral', 'Zen Old Mincho', 'Shippori Mincho',
+        'Noto Serif JP', 'Noto Serif SC', serif;
+    --font-title: 'Yuji Syuku', 'Yuji Boku', 'Zen Old Mincho', 'Noto Serif JP', serif;
+    --shadow-paper: 0 1px 1px rgba(16, 24, 40, 0.06), 0 10px 30px rgba(16, 24, 40, 0.08),
+        0 35px 70px rgba(16, 24, 40, 0.06);
+    --shadow-ink: 0 4px 12px rgba(16, 24, 40, 0.14);
+    --ease-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --scrollbar-thumb: rgba(43, 48, 54, 0.32);
+}
+
+/* dark mode - synced with blog shiro-theme (localStorage shiro-theme) */
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper: #17191d;
+    --ink: #e4e1d9;
+    --seal: #e05256;
+    --soft-border: rgba(228, 225, 217, 0.09);
+    --focus-ring: rgba(228, 225, 217, 0.22);
+    --muted: #a8acb5;
+    --shadow-paper: 0 1px 1px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.35), 0 35px 70px rgba(0, 0, 0, 0.3);
+    --shadow-ink: 0 4px 12px rgba(0, 0, 0, 0.5);
+    --scrollbar-thumb: rgba(228, 225, 217, 0.28);
+}

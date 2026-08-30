@@ -36,7 +36,7 @@ if (missingOssConfig.length > 0) {
 
 const client = new OSS(ossConfig);
 const publicBaseUrl = 'https://img.yukinova.top/';
-const PROCESS_SUFFIX = '?x-oss-process=image/auto-orient,1/quality,q_30/format,webp';
+const PROCESS_SUFFIX = '?x-oss-process=image/auto-orient,1/resize,w_600/quality,q_30/format,webp';
 const categoriesPath = path.join(__dirname, 'categories.json');
 
 function buildPublicUrl(objectName) {

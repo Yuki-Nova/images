@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title || '相册' %> · yuki's stop</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cardo:wght@400;700&family=Cormorant+Garamond:wght@400;500;600&family=Noto+Serif+SC:wght@400;500;600&family=Shippori+Mincho:wght@400;500;600&family=Yuji+Syuku&family=Yuji+Boku&family=Zen+Old+Mincho:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Cardo:wght@400;700&family=Cormorant+Garamond:wght@400;500;600&family=Noto+Serif+SC:wght@400;500;600&family=Shippori+Mincho:wght@400;500;600&family=Yuji+Syuku&family=Yuji+Boku&family=Zen+Old+Mincho:wght@400;500;600&display=swap" rel="stylesheet"></noscript>
+    <link rel="stylesheet" href="assets/css/vars.css">
+    <link rel="stylesheet" href="assets/css/gallery.css">
+    <!-- Theme init (synced with blog: localStorage 'shiro-theme') -->
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('shiro-theme');
+                if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+            } catch (e) { /* ignore */ }
+        })();
+    </script>
+</head>
+<body>
+
+<nav class="site-nav">
+    <a class="brand" href="https://yukinova.top/">yuki's stop</a>
+    <a class="link" href="https://yukinova.top/">主页</a>
+    <a class="link" href="https://yukinova.top/archives">归档</a>
+    <a class="link" href="https://yukinova.top/categories">分类</a>
+    <a class="link" href="https://yukinova.top/tags">标签</a>
+    <a class="link" href="https://yukinova.top/poetry/">诗词</a>
+    <a class="link active" href="/images/">相册</a>
+    <button id="themeBtn" type="button" aria-label="切换主题" title="切换主题"
+        style="z-index: 10; background: none; border: none; cursor: pointer; font-size: 1.05rem; line-height: 1; opacity: 0.7; transition: opacity 0.25s; padding: 0;">
+        <span id="themeIcon" aria-hidden="true">🌙</span>
+    </button>
+</nav>

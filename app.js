@@ -4,7 +4,6 @@ const ejs = require('ejs');
 const fs = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
-const bodyParser = require('body-parser');
 const { buildPublicUrl, PROCESS_SUFFIX, listAllImages } = require('./lib/images');
 require('dotenv').config();
 

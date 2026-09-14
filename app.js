@@ -43,8 +43,9 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 const AUTH_SALT = '_SALT_GALLERY_V1';
 const hasAuth = () => !!ADMIN_PASSWORD;
 const sessionToken = () => 'web_' + crypto.createHash('sha256').update(ADMIN_PASSWORD + AUTH_SALT).digest('hex').slice(0, 48);
+// fail-closed：未配置 ADMIN_PASSWORD 时一律判为无权限（曾经是 `return true`，等于写接口裸奔）
 function tokenValid(req) {
-  if (!hasAuth()) return true;
+  if (!hasAuth()) return false;
   const expected = sessionToken();
   const header = req.headers['x-auth-token'];
   const query = req.query && req.query.token;
@@ -120,7 +121,9 @@ app.get('/', async (req, res) => {
 });
 
 app.post('/api/auth/login', (req, res) => {
-  if (!hasAuth()) return res.status(404).json({ error: 'auth not configured on server' });
+  if (!hasAuth()) {
+    return res.status(503).json({ error: 'auth not configured on server (ADMIN_PASSWORD missing); write API disabled' });
+  }
   const { password } = req.body || {};
   if (password === ADMIN_PASSWORD) return res.json({ token: sessionToken() });
   return res.status(401).json({ error: '密码错误' });
@@ -136,6 +139,10 @@ app.get('/api/categories', async (req, res) => {
 });
 
 app.put('/api/categories', async (req, res) => {
+  if (!hasAuth()) {
+    // fail-closed：没有密码就不提供写能力，而不是无条件放行
+    return res.status(503).json({ error: 'auth not configured on server (ADMIN_PASSWORD missing); write API disabled' });
+  }
   if (!tokenValid(req)) {
     return res.status(401).json({ error: 'unauthorized' });
   }
@@ -164,5 +171,11 @@ app.put('/api/categories', async (req, res) => {
 
 // 启动服务器
 app.listen(port, () => {
+  if (!hasAuth()) {
+    console.warn('⚠️  ADMIN_PASSWORD 未配置：写接口 PUT /api/categories 与登录接口均返回 503（fail-closed）。');
+    console.warn('    如需在线管理分类，请在 .env 配置 ADMIN_PASSWORD 后重启。');
+  } else {
+    console.log('🔒 写接口已启用鉴权（X-Auth-Token / ?token=）');
+  }
   testConnection(); // 先测试连接
 });

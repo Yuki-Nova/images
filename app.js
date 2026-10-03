@@ -14,6 +14,15 @@ app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 app.use(express.json({ limit: '1mb' }));
 
+// CORS 支持
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, X-Auth-Token');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
+
 const staticDir = path.join(__dirname, 'public');
 app.use('/assets', express.static(staticDir));
 
@@ -166,6 +175,58 @@ app.put('/api/categories', async (req, res) => {
     return res.json({ ok: true, count: Object.keys(payload).length });
   } catch (e) {
     return res.status(500).json({ error: 'Failed to write categories.' });
+  }
+});
+
+// 实时获取 OSS 全部图片列表 + 当前分类
+app.get('/api/images', async (req, res) => {
+  try {
+    const images = await listAllImages(client);
+    const categories = await readCategories();
+    const merged = images.map((img) => ({
+      key: img.objectKey,
+      name: img.name,
+      url: img.url,
+      thumb: img.thumbUrl,
+      time: img.lastModified,
+      category: categories[img.objectKey] || '未分类',
+    }));
+    return res.json({ ok: true, images: merged, categories });
+  } catch (e) {
+    console.error('❌ 获取 OSS 实时图片失败：', e);
+    return res.status(500).json({ error: 'Failed to list images from OSS.' });
+  }
+});
+
+// 在线删除 OSS 图片（需要管理员鉴权）
+app.delete('/api/images', async (req, res) => {
+  if (!hasAuth()) {
+    return res.status(503).json({ error: 'auth not configured on server (ADMIN_PASSWORD missing); delete API disabled' });
+  }
+  if (!tokenValid(req)) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+
+  const { objectKey } = req.body || {};
+  if (!objectKey || typeof objectKey !== 'string') {
+    return res.status(400).json({ error: 'Missing or invalid objectKey.' });
+  }
+
+  try {
+    console.log(`🗑️ 正在从 OSS 删除文件: ${objectKey}`);
+    await client.delete(objectKey);
+
+    // 同步从 categories.json 中移除
+    const categories = await readCategories();
+    if (categories[objectKey]) {
+      delete categories[objectKey];
+      await writeCategories(categories);
+    }
+
+    return res.json({ ok: true, deleted: objectKey });
+  } catch (e) {
+    console.error('❌ 删除 OSS 图片失败：', e);
+    return res.status(500).json({ error: 'Failed to delete object from OSS.' });
   }
 });
 

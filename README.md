@@ -11,7 +11,6 @@
 | [EJS](https://ejs.co/) | 5.0.2 | 服务端模板渲染 |
 | [ali-oss](https://github.com/ali-sdk/ali-oss) | 6.23.0 | 阿里云 OSS SDK，遍历图片列表 |
 | [dotenv](https://github.com/motdotla/dotenv) | 16.5.0 | 环境变量管理 |
-| [body-parser](https://github.com/expressjs/body-parser) | 2.2.2 | 请求体解析 |
 | 阿里云 OSS | - | 图片存储 |
 | 阿里云 CDN | - | 图片加速分发 |
 | Nginx | - | 反向代理（宝塔面板管理） |
@@ -63,16 +62,25 @@ npm run build:static
 ```
 .
 ├── views/
-│   └── index.ejs        # 相册页面模板
+│   ├── index.ejs        # 相册页面模板
+│   └── partials/        # 模板片段
+├── lib/
+│   └── images.js        # OSS 遍历 / 公共 URL / 图片处理参数
 ├── scripts/
 │   └── build-static.js  # 静态构建脚本（生成 docs/index.html）
 ├── docs/
-│   └── index.html       # 静态构建输出
-├── app.js               # 动态服务入口
+│   ├── index.html       # 静态构建输出
+│   └── assets/          # 静态构建输出（样式等）
+├── .github/workflows/
+│   └── pages.yml        # 静态快照的 Pages 发布工作流
+├── app.js               # 动态服务入口（端口 3000）
 ├── categories.json      # 图片分类配置
 ├── .env                 # 环境变量（不提交 Git）
 └── package.json
 ```
+
+> 请求体解析直接用 `express.json()`（`app.js:15`），**不再依赖 `body-parser`**（已移除，见 `AGENTS.md` 坑点 2）。
+> `npm test` 是占位脚本，跑必失败，不要接入任何总控测试。
 
 ## 图片处理
 
